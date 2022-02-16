@@ -15,7 +15,7 @@ from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from watchlist_app.api.permissions import IsAdminOrReadOnly, IsReviewUserOrReadOnly
-from watchlist_app.api.pagination import WatchListPagination
+from watchlist_app.api.pagination import WatchListPagination, WatchListLOPagination, WatchListCPagination
 from django_filters.rest_framework import DjangoFilterBackend
 # import django_filters.rest_framework
 
@@ -184,13 +184,13 @@ class StreamPlatFormDetailAV(APIView):
 class WatchListGV(generics.ListAPIView):
     queryset = WatchlistModel.objects.all()
     serializer_class = WatchListSerializer
-    pagination_class = WatchListPagination
+    pagination_class = WatchListCPagination
     #To restrict Unauthenticated users from viewing the lists
     # permission_classes = [IsAuthenticated]
     # throttle_classes = [ReviewListThrottle, AnonRateThrottle]
     # search_fields = ['title', 'platform__name']
-    filter_backends = [filters.OrderingFilter]
-    ordering_fields = ['avg_rating']
+    # filter_backends = [filters.OrderingFilter]
+    # ordering_fields = ['avg_rating']
 
 class WatchListAV(APIView):
 
