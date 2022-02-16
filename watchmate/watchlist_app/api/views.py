@@ -21,6 +21,7 @@ class StreamPlatFormListAV(APIView):
             return Response(serializer.errors)
         
 class StreamPlatFormDetailAV(APIView):
+    
     def get(self, request, pk):
         try:
             movie = StreamPlatForm.objects.get(pk=pk)

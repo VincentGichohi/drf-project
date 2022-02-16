@@ -1,23 +1,48 @@
 from django.forms import ValidationError
-from watchlist_app.models import WatchList, StreamPlatForm, Review
+from watchlist_app.models import WatchList as WatchlistModel, StreamPlatForm, Review
 from rest_framework.response import Response
 from watchlist_app.api.serializers import ReviewSerializer, WatchListSerializer, StreamPlatFormSerializer
-from rest_framework.views import APIView  
+from rest_framework.views import APIView
 # from rest_framework.decorators import api_view
 from rest_framework import status
 from rest_framework import generics
 from rest_framework import mixins
+from rest_framework import filters
 from rest_framework import viewsets
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle, ScopedRateThrottle
+from watchlist_app.api.throttling import ReviewCreateThrottle, ReviewListThrottle
 from rest_framework.permissions import IsAuthenticated,IsAuthenticatedOrReadOnly
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from watchlist_app.api.permissions import IsAdminOrReadOnly, IsReviewUserOrReadOnly
+from watchlist_app.api.pagination import WatchListPagination
+from django_filters.rest_framework import DjangoFilterBackend
+# import django_filters.rest_framework
+
+class UserReview(generics.ListAPIView):
+    # queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    #To restrict Unauthenticated users from viewing the lists
+    # permission_classes = [IsAuthenticated]
+    # throttle_classes = [ReviewListThrottle, AnonRateThrottle]
+
+
+    # def get_queryset(self):
+    #     username = self.kwargs['username']
+    #     return Review.objects.filter(review_user__username=username)
+        #The __username is to avoid the error Field 'id' expected a number but got 'demo'. due to the foreign key'review-user'
+
+    def get_queryset(self):
+        username = self.request.query_params.get('username', None)
+        return Review.objects.filter(review_user__username=username)
+
 
 # A view for creating reviews
 class ReviewCreate(generics.CreateAPIView):
 
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ReviewCreateThrottle]
 
     #A queryset to get all the reviews done to a specific movie
     def get_queryset(self):
@@ -25,7 +50,7 @@ class ReviewCreate(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         pk = self.kwargs.get('pk')
-        watchlist = WatchList.objects.get(pk=pk)
+        watchlist = WatchlistModel.objects.get(pk=pk)
 
         #A review queryset to filter whether a user has already reviewed a movie to prevent them from reviewing it twice
         review_user = self.request.user
@@ -51,6 +76,9 @@ class ReviewList(generics.ListAPIView):
     serializer_class = ReviewSerializer
     #To restrict Unauthenticated users from viewing the lists
     # permission_classes = [IsAuthenticated]
+    throttle_classes = [ReviewListThrottle, AnonRateThrottle]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['review_user__username', 'active']
 
     def get_queryset(self):
         pk = self.kwargs['pk']
@@ -60,6 +88,8 @@ class ReviewDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [IsReviewUserOrReadOnly]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'review-detail'
 
 # class ReviewDetail(mixins.RetrieveModelMixin, generics.GenericAPIView):
 #     queryset = Review.objects.all()
@@ -150,13 +180,24 @@ class StreamPlatFormDetailAV(APIView):
         movie.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
-    
+
+class WatchListGV(generics.ListAPIView):
+    queryset = WatchlistModel.objects.all()
+    serializer_class = WatchListSerializer
+    pagination_class = WatchListPagination
+    #To restrict Unauthenticated users from viewing the lists
+    # permission_classes = [IsAuthenticated]
+    # throttle_classes = [ReviewListThrottle, AnonRateThrottle]
+    # search_fields = ['title', 'platform__name']
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ['avg_rating']
+
 class WatchListAV(APIView):
 
     permission_classes = [IsAdminOrReadOnly]
 
     def get(self, request):
-        platform = WatchList.objects.all()
+        platform = WatchlistModel.objects.all()
         serializer = WatchListSerializer(platform, many=True)
         return Response(serializer.data)
     
@@ -174,14 +215,14 @@ class WatchListDetailAV(APIView):
 
     def get(self, request, pk):
             try:
-                movie = WatchList.objects.get(pk=pk)
-            except WatchList.DoesNotExist:
+                movie = WatchlistModel.objects.get(pk=pk)
+            except WatchlistModel.DoesNotExist:
                 return Response({"Error": 'Movie not found'}, status=status.HTTP_404_NOT_FOUND)
             serializer = WatchListSerializer(movie)
             return Response(serializer.data)
 
     def put(self, request,pk):
-        movie = WatchList.objects.get(pk=pk)
+        movie = WatchlistModel.objects.get(pk=pk)
         serializer = WatchListSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -190,7 +231,7 @@ class WatchListDetailAV(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)     
         
     def delete(self, request, pk):
-        movie = WatchList.objects.get(pk=pk)
+        movie = WatchlistModel.objects.get(pk=pk)
         movie.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
