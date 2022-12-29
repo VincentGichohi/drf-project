@@ -4,6 +4,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 
+
 class RegisterTestCase(APITestCase):
 
     def test_register(self):
@@ -11,22 +12,23 @@ class RegisterTestCase(APITestCase):
             'username': 'testcase',
             'email': 'testcaseexample@gmail.com',
             'password': 'NewPassword@123',
-            'password2' : 'NewPassword@123'
+            'password2': 'NewPassword@123'
         }
         response = self.client.post(reverse('register'), data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
+
 class LoginLogoutTestCase(APITestCase):
 
-    #Before we test the user, we must login them first
+    # Before we test the user, we must login them first
     def setUp(self):
         self.user = User.objects.create_user(username="example", password="NewPassword@123")
 
-    #Testing the login step
+    # Testing the login step
     def test_login(self):
         data = {
-            "username" : "example",
-            "password" : 'NewPassword@123'
+            "username": "example",
+            "password": 'NewPassword@123'
         }
         response = self.client.post(reverse('login'), data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
